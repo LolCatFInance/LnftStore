@@ -5,6 +5,7 @@ import "./IERC721.sol";
 import "./IERC20.sol";
 import "./SafeMath.sol";
 import "./ReentrancyGuard.sol";
+import "./IERC721Receiver.sol";
 import "./SafeERC20.sol";
 contract LcatNftStore is Ownable,ReentrancyGuard{
     using SafeMath for uint256;
@@ -69,7 +70,9 @@ contract LcatNftStore is Ownable,ReentrancyGuard{
        require(NftContract!=Lnft);
        IERC721(NftContract).safeTransferFrom(address(this),To,TokenId);
    }
-   
+     function onERC721Received(address, address, uint256, bytes memory) public pure returns (bytes4) {
+        return this.onERC721Received.selector;
+    }
    
    
 }
