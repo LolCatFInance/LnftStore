@@ -13,7 +13,7 @@ contract LcatNftStore is Ownable,ReentrancyGuard{
     IERC721 public Lnft;
     IERC20 public Lcat;
     uint256 public TotalItems;
-    uint256 public TransferFee;
+    uint256 public TotalRemovedItems;
     mapping(uint256=>uint256)public NftToItemId;
     event NewItem(uint256 indexed ItemId,uint256 indexed TokenId,uint256 indexed TokenPrice);
     event DeleteItem(uint256 indexed ItemId);
@@ -23,6 +23,7 @@ contract LcatNftStore is Ownable,ReentrancyGuard{
         uint256 TokenId;
         uint256 SellPrice;
         bool Issold;
+        bool Removed;
         }
         Item[] public Items;
    function SetLnftAddress(IERC721 LnftAddress )public onlyOwner{
@@ -31,12 +32,8 @@ contract LcatNftStore is Ownable,ReentrancyGuard{
    function setLcatAddress(IERC20 LcatAddress)public onlyOwner{
        Lcat=IERC20(LcatAddress);
    }
-   //Token+Fee Percent Eg:1100= Token+10% FEe
-   function setTransfeFee(uint256 _Fee)public onlyOwner(){
-       TransferFee=_Fee;
-   }
    function AddItem(uint256 TokenId,uint256 TokenPrice)public onlyOwner{
-       Items.push(Item(TotalItems,TokenId,TokenPrice,false));
+       Items.push(Item(TotalItems,TokenId,TokenPrice,false,false));
        NftToItemId[TokenId]=Items.length.sub(1);
        Lnft.safeTransferFrom(msg.sender,address(this),TokenId);
        TotalItems++;
@@ -47,21 +44,26 @@ contract LcatNftStore is Ownable,ReentrancyGuard{
        if(MyItem.Issold!=true){
        Lnft.safeTransferFrom(address(this),msg.sender,Items[ItemId].TokenId);
        }
-       delete MyItem;
-       TotalItems--;
+       MyItem.Issold=true;
+       MyItem.Removed=true;
+       TotalRemovedItems++;
        emit DeleteItem(ItemId);
        
    }
    function BuyNft(uint256 ItemId)public nonReentrant {
        Item storage MyItem=Items[ItemId];
        require(MyItem.Issold==false,"IeamSoldPreviously");
-       Lcat.safeTransferFrom(msg.sender,address(this),(MyItem.SellPrice.div(1000).mul(TransferFee)));
+       Lcat.safeTransferFrom(msg.sender,address(this),MyItem.SellPrice);
        Lnft.safeTransferFrom(address(this),msg.sender,MyItem.TokenId);
        MyItem.Issold=true;
        emit TokenSold(MyItem.TokenId,MyItem.SellPrice,msg.sender);
    }
    function CollectLcat() public onlyOwner{
        Lcat.safeTransfer(msg.sender,Lcat.balanceOf(address(this)));
+   }
+   function TotalIteams() public view returns(uint256){
+      uint256 IteamCount=TotalItems.sub(TotalRemovedItems);
+      return IteamCount;
    }
    function RescueBep20(IERC20 TokenAddress,uint256 Amount,address To)public onlyOwner{
        IERC20(TokenAddress).safeTransfer(To,Amount);
